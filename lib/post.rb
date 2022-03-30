@@ -57,17 +57,21 @@ class Post
     query += 'ORDER by rowid DESC '
     query += 'LIMIT :limit ' unless limit.nil?
 
-    statement = db.prepare query
+    begin
+      statement = db.prepare query
 
-    statement.bind_param('type', type) unless type.nil?
-    statement.bind_param('limit', limit) unless limit.nil?
+      statement.bind_param('type', type) unless type.nil?
+      statement.bind_param('limit', limit) unless limit.nil?
 
-    result = statement.execute!
+      result = statement.execute!
 
-    statement.close
-    db.close
+      statement.close
+      db.close
 
-    result
+      result
+    rescue SQLite3::SQLException
+      abort 'Не удалось выполнить запрос в базе notepad.sqlite. No such table: posts'
+    end
   end
 
   def read_from_console
@@ -95,17 +99,20 @@ class Post
     db.results_as_hash = true
 
     post_hash = to_db_hash
+    begin
+      db.execute(
+        'INSERT INTO posts (' +
+          post_hash.keys.join(', ') +
+          ") VALUES (#{('?,' * post_hash.size).chomp(',')})",
+        post_hash.values
+      )
 
-    db.execute(
-      'INSERT INTO posts (' +
-        post_hash.keys.join(', ') +
-        ") VALUES (#{('?,' * post_hash.size).chomp(',')})",
-      post_hash.values
-    )
-
-    insert_row_id = db.last_insert_row_id
-    db.close
-    insert_row_id
+      insert_row_id = db.last_insert_row_id
+      db.close
+      insert_row_id
+    rescue SQLite3::SQLException
+      abort 'Не удалось выполнить запрос в базе notepad.sqlite. No such table: posts'
+    end
   end
 
   def save

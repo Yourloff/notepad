@@ -45,7 +45,7 @@ else
   print '|'
 
   # Используем safe навигацию, учитывая возможное значение nil для result
-  result&.each do |row|
+  result.each do |row|
     puts
 
     row.each do |element|
