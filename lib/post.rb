@@ -8,7 +8,7 @@ class Post
   SQLITE_DB_FILE = File.join(__dir__, 'notepad.db')
 
   def self.post_types
-    {'Memo' => Memo, 'Task' => Task, 'Link' => Link}
+    { 'Memo' => Memo, 'Task' => Task, 'Link' => Link }
   end
 
   def self.create(type)
@@ -30,7 +30,12 @@ class Post
     # Если id передали, едем дальше
     db = SQLite3::Database.open(SQLITE_DB_FILE)
     db.results_as_hash = true
-    result = db.execute('SELECT * FROM posts WHERE  rowid = ?', id)
+    begin
+      result = db.execute('SELECT * FROM posts WHERE  rowid = ?', id)
+    rescue SQLite3::SQLException => e
+      puts "Не удалось выполнить запрос в базе #{SQLITE_DB_FILE}"
+      abort e.message
+    end
     db.close
 
     # Если в результате запроса получили пустой массив, снова возвращаем nil
@@ -59,19 +64,24 @@ class Post
 
     begin
       statement = db.prepare query
-
-      statement.bind_param('type', type) unless type.nil?
-      statement.bind_param('limit', limit) unless limit.nil?
-
-      result = statement.execute!
-
-      statement.close
-      db.close
-
-      result
-    rescue SQLite3::SQLException
-      abort 'Не удалось выполнить запрос в базе notepad.sqlite. No such table: posts'
+    rescue SQLite3::SQLException => e
+      puts "Не удалось выполнить запрос в базе #{SQLITE_DB_FILE}"
+      abort e.message
     end
+    statement.bind_param('type', type) unless type.nil?
+    statement.bind_param('limit', limit) unless limit.nil?
+
+    begin
+      result = statement.execute!
+    rescue SQLite3::SQLException => e
+      puts "Не удалось выполнить запрос в базе #{SQLITE_DB_FILE}"
+      abort e.message
+    end
+
+    statement.close
+    db.close
+
+    result
   end
 
   def read_from_console
@@ -110,8 +120,9 @@ class Post
       insert_row_id = db.last_insert_row_id
       db.close
       insert_row_id
-    rescue SQLite3::SQLException
-      abort 'Не удалось выполнить запрос в базе notepad.sqlite. No such table: posts'
+    rescue SQLite3::SQLException => e
+      puts "Не удалось выполнить запрос в базе #{SQLITE_DB_FILE}"
+      abort e.message
     end
   end
 
